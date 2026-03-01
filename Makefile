@@ -40,6 +40,15 @@ calibrate.Rout: calibrate.R model.rds simulate.rds
 timevar_model.Rout: timevar_model.R model.rds
 	$(pipeR)
 
+# timevar_sims.Rout: timevar_model.R
+timevar_sims.Rout: timevar_sims.R timevar_model.rds
+	$(pipeR)
+
+timevar_calibrate.Rout: timevar_calibrate.R timevar_sims.rds timevar_model.rds
+	$(pipeR)
+
+timevar_calibrate2.Rout: timevar_calibrate2.R timevar_sims.rds model.rds
+	$(pipeR)
 
 -include makestuff/os.mk
 

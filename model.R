@@ -5,6 +5,7 @@ library(shellpipes)
 flows = list(
     mp_per_capita_flow("S", "I", "beta * I / N", "incidence")
   , mp_per_capita_flow("I", "R", "gamma", "recovery")
+  , beta_thing ~ beta
 )
 
 ## default values for quantities required to run simulations
