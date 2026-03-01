@@ -6,7 +6,10 @@ spec <- rdsRead("model")
 
 simdat <- rdsRead("simulate")
 
+
+## modifying the determinstic simulation as data
 obsdat <- (simdat
+	|> filter(iter == "0")
 	|> mutate(value = round(value))
 )
 
@@ -25,7 +28,14 @@ sir_cal = mp_tmb_calibrator(
 
 sir_opt = mp_optimize(sir_cal)
 
+## Check optimized fit
+
 print(sir_opt)
+
+rdsSave(sir_opt)
+
+
+## Plots
 
 fitted_data = mp_trajectory_sd(sir_cal, conf.int = TRUE)
 

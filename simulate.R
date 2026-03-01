@@ -1,17 +1,22 @@
 library(macpan2)
-library(ggplot2);theme_set(theme_bw())
+library(tidyverse);theme_set(theme_bw())
 library(shellpipes)
 
 spec <- rdsRead()
 
-# set number of time steps in simulation
-time_steps = 200L
+# setting simulation parameters
+time_steps <- 200L
+outputs <- c("incidence")
+nsims <- 10
+
+# model parameter
+beta <- 0.2
 
 # simulator object
 sir_simulator = mp_simulator(  
     model = spec
   , time_steps = time_steps
-  , outputs = "incidence"
+  , outputs = outputs
 )
 
 # simulate trajectory
@@ -20,16 +25,38 @@ sir_simulator = mp_simulator(
 
 det_sim <- (mp_trajectory(sir_simulator))
 
-print(det_sim)
+
+## Stochastic simulation
+
+parameterized_sim <- (mp_tmb_calibrator(mp_euler_multinomial(spec)
+	, par = "beta"
+	, time = mp_sim_bounds(1,time_steps)
+	, outputs = outputs
+	)
+)
+
+beta_sample <- rnorm(n=nsims,mean=beta,sd=0.001)
+
+sim_fn <- function(x){
+	stochsim <- mp_trajectory_par(parameterized_sim, list(beta=x))
+}
+
+stoch_sim <- (lapply(beta_sample,sim_fn)
+	|> bind_rows(.id="iter")
+)
+
+## Plotting simulations
 
 gg <- (ggplot(det_sim,aes(x=time,y=value))
-	+ geom_point()
+	+ geom_line()
+	+ geom_line(data=stoch_sim,aes(x=time,y=value,group=iter),alpha=0.1)
 )
 
 print(gg)
 
-## Stochastic simulation
-### Note, for stochastic simulation, we need a calibrated object because it needs to know what parameters are non-deterministic
+simdf <- (det_sim
+	|> mutate(iter = "0")
+	|> bind_rows(stoch_sim)
+)
 
-rdsSave(det_sim)
-
+rdsSave(simdf)
