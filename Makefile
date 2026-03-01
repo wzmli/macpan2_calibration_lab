@@ -28,7 +28,6 @@ makestuff:
 Sources += README.md
 Sources += $(wildcard *.R)
 
-
 model.Rout: model.R
 	$(pipeR)
 
@@ -37,6 +36,10 @@ simulate.Rout: simulate.R model.rds
 
 calibrate.Rout: calibrate.R model.rds simulate.rds
 	$(pipeR)
+
+timevar_model.Rout: timevar_model.R model.rds
+	$(pipeR)
+
 
 -include makestuff/os.mk
 
