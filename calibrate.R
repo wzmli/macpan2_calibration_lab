@@ -1,6 +1,7 @@
 library(macpan2)
 library(tidyverse);theme_set(theme_bw())
 library(shellpipes)
+rpcall("calibrate.Rout calibrate.R model.rds simulate.rds")
 
 spec <- rdsRead("model")
 

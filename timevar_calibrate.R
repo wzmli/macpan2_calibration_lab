@@ -1,6 +1,7 @@
 library(macpan2)
 library(tidyverse);theme_set(theme_bw())
 library(shellpipes)
+rpcall("timevar_calibrate.Rout timevar_calibrate.R timevar_sims.rds timevar_model.rds")
 
 spec <- rdsRead("model")
 

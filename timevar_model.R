@@ -1,5 +1,6 @@
 library(macpan2)
 library(shellpipes)
+rpcall("timevar_model.Rout timevar_model.R model.rds")
 
 spec <- rdsRead()
 

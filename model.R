@@ -1,5 +1,6 @@
 library(macpan2)
 library(shellpipes)
+rpcall("model.Rout model.R")
 
 ## flow diagram specification
 flows = list(

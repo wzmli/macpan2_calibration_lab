@@ -29,26 +29,26 @@ Sources += README.md
 Sources += $(wildcard *.R)
 
 model.Rout: model.R
-	$(pipeR)
+	$(pipeRcall)
 
 simulate.Rout: simulate.R model.rds
-	$(pipeR)
+	$(pipeRcall)
 
 calibrate.Rout: calibrate.R model.rds simulate.rds
-	$(pipeR)
+	$(pipeRcall)
 
 timevar_model.Rout: timevar_model.R model.rds
-	$(pipeR)
+	$(pipeRcall)
 
 # timevar_sims.Rout: timevar_model.R
 timevar_sims.Rout: timevar_sims.R timevar_model.rds
-	$(pipeR)
+	$(pipeRcall)
 
 timevar_calibrate.Rout: timevar_calibrate.R timevar_sims.rds timevar_model.rds
-	$(pipeR)
+	$(pipeRcall)
 
 timevar_calibrate2.Rout: timevar_calibrate2.R timevar_sims.rds model.rds
-	$(pipeR)
+	$(pipeRcall)
 
 -include makestuff/os.mk
 
