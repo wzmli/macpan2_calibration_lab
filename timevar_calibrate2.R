@@ -12,7 +12,7 @@ time_steps <- 200
 print(spec)
 print(simdat)
 
-## modifying the determinstic simulation as data
+## modifying the deterministic simulation as data
 obsdat <- (simdat
 	|> mutate(value = round(value))
 )

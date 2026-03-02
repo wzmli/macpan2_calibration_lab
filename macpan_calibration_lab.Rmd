@@ -1,0 +1,314 @@
+---
+title: "Calibration_lab"
+output: html_document
+date: "2026-03-01"
+---
+
+## Create an macpan SIR model spec
+
+
+```{r sir_model}
+library(macpan2)
+library(tidyverse);theme_set(theme_bw())
+
+## flow diagram specification
+flows = list(
+    mp_per_capita_flow("S", "I", "beta * I / N", "incidence")
+  , mp_per_capita_flow("I", "R", "gamma", "recovery")
+  , beta_thing ~ beta
+)
+
+## default values for quantities required to run simulations
+default = list(
+    beta = 0.2   ## transmission rate
+  , gamma = 0.1  ## recovery rate
+  , N = 1000      ## total population size (constant in this model)
+  , I = 1        ## initial number of infectious individuals
+  , R = 0        ## initial number of recovered individuals
+)
+
+## compute the initial number of susceptible individuals
+initialize_state = list(S ~ N - I - R)
+
+## model specification
+spec = mp_tmb_model_spec(
+    before = initialize_state
+  , during = flows
+  , default = default
+)
+
+
+```
+
+
+## Deterministic and stochastic simulation of the SIR model spec
+
+
+```{r sims}
+# setting simulation parameters
+time_steps <- 200L
+outputs <- c("incidence")
+nsims <- 10
+
+# model parameter
+beta <- 0.2
+
+# simulator object
+sir_simulator = mp_simulator(  
+    model = spec
+  , time_steps = time_steps
+  , outputs = outputs
+)
+
+# simulate trajectory
+
+## Deterministic simulation
+
+det_sim <- (mp_trajectory(sir_simulator))
+
+
+## Stochastic simulation
+
+parameterized_sim <- (mp_tmb_calibrator(mp_euler_multinomial(spec)
+	, par = "beta"
+	, time = mp_sim_bounds(1,time_steps)
+	, outputs = outputs
+	)
+)
+
+beta_sample <- rnorm(n=nsims,mean=beta,sd=0.001)
+
+sim_fn <- function(x){
+	stochsim <- mp_trajectory_par(parameterized_sim, list(beta=x))
+}
+
+stoch_sim <- (lapply(beta_sample,sim_fn)
+	|> bind_rows(.id="iter")
+)
+
+## Plotting simulations
+
+gg <- (ggplot(det_sim,aes(x=time,y=value))
+	+ geom_line()
+	+ geom_line(data=stoch_sim,aes(x=time,y=value,group=iter),alpha=0.1)
+)
+
+print(gg)
+
+simdf <- (det_sim
+	|> mutate(iter = "0")
+	|> bind_rows(stoch_sim)
+)
+
+
+```
+
+
+## Fitting the model to the deterministic simulation 
+
+```{r calibration}
+
+## modifying the determinstic simulation as data
+obsdat <- (simdf
+	|> filter(iter == "0")
+	|> mutate(value = round(value))
+)
+
+sir_cal = mp_tmb_calibrator(
+    spec = spec
+  , data = obsdat
+  
+  ## name the trajectory variable, with a name that
+  ## is the same in both the spec and the data
+  , traj = "incidence"  
+  
+  ## fit the following parameters
+#  , par = c("beta", "gamma")
+  , par = c("beta")
+)
+
+sir_opt = mp_optimize(sir_cal)
+
+## Check optimized fit
+
+print(sir_opt)
+
+
+## Plots
+
+fitted_data = mp_trajectory_sd(sir_cal, conf.int = TRUE)
+
+gg <- (ggplot(obsdat)
+  + geom_point(aes(time, value))
+  + geom_line(data = fitted_data, aes(time, value))
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , data = fitted_data
+    , alpha = 0.2
+    , colour = "red"
+  )
+)
+
+print(gg)
+
+```
+
+## Create a time varying SIR model with piecewise beta values
+
+```{r timevar_model}
+beta_changepoints <- c(1,50, 80, 120)
+beta_values <- c(0.2,0.15,0.1,0.2)
+
+expr <- list(beta ~ time_var(beta_values, beta_changepoints))
+
+timevar_spec <- (spec
+	|> mp_tmb_insert(phase = "during"
+		, at = 1
+		, expressions = expr
+		, default = list(beta_values = beta_values)
+		, integers = list(beta_changepoints = beta_changepoints)
+	)
+)
+
+```
+
+## Deterministic simulation of the piece-wise timevarying beta SIR
+```{r timevar_sim}
+# simulator object
+sir_simulator = mp_simulator(  
+    model = timevar_spec
+  , time_steps = time_steps
+  , outputs = "incidence"
+)
+
+# simulate trajectory
+
+## Deterministic simulation
+
+det_sim <- (mp_trajectory(sir_simulator))
+
+
+gg <- (ggplot(det_sim,aes(x=time,y=value))
+	+ geom_line()
+)
+
+print(gg)
+
+
+```
+
+## Fitting the piece-wise timevarying SIR to the deterministic simulation
+
+```{r timevar_calibrate}
+
+
+## modifying the determinstic simulation as data
+obsdat <- (det_sim
+	|> mutate(value = round(value))
+)
+
+timevar_sir_cal = mp_tmb_calibrator(
+    spec = timevar_spec
+  , data = obsdat
+  
+  ## name the trajectory variable, with a name that
+  ## is the same in both the spec and the data
+  , traj = "incidence"  
+  
+  ## fit the following parameters
+#  , par = c("beta", "gamma")
+  , par = c("beta_values")
+)
+
+timevar_sir_opt = mp_optimize(timevar_sir_cal)
+
+## Check optimized fit
+
+print(timevar_sir_opt)
+
+
+## Plots
+
+fitted_data = mp_trajectory_sd(timevar_sir_cal, conf.int = TRUE)
+
+gg <- (ggplot(obsdat)
+  + geom_point(aes(time, value))
+  + geom_line(data = fitted_data, aes(time, value))
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , data = fitted_data
+    , alpha = 0.2
+    , colour = "red"
+  )
+)
+
+print(gg)
+
+
+
+```
+
+## Starting with the original SIR model spec (model.R), fit a spline-based time varying beta SIR to the piece-wise determinsitic simulation
+
+```{r timevar_spline_calibration}
+## modifying the deterministic simulation as data
+
+
+basis_cols = 5
+basis_rows = time_steps
+X = splines::ns(1:basis_rows
+	, basis_cols
+	, intercept = TRUE
+	, Boundary.knots = c(1, basis_rows)
+	)
+
+timevar_spec = mp_tmb_insert_glm_timevar(spec
+	, parameter_name = "beta"
+	, design_matrix = X
+	, timevar_coef = rep(0,
+	basis_cols)
+	, link_function = mp_log
+)
+
+spline_cal <- (mp_tmb_calibrator(spec = timevar_spec |> mp_rk4()
+	, data = obsdat
+	, time = mp_sim_bounds(1, time_steps)
+	, traj = "incidence"
+	, par = list(time_var_beta = mp_normal(0,log(1)))
+	, outputs = c("beta_thing","incidence")
+	)
+)
+
+
+spline_opt = mp_optimize(spline_cal)
+
+## Check optimized fit
+
+print(spline_opt)
+
+## Plots
+
+fitted_data = mp_trajectory_sd(spline_cal, conf.int = TRUE)
+
+gg <- (ggplot(data = (fitted_data |> filter(matrix == "incidence")))
+  + geom_line(aes(time, value))
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , alpha = 0.2
+    , colour = "red"
+  )
+  + geom_point(data=obsdat,aes(time, value))
+)
+
+print(gg)
+
+betaplot <- (ggplot(data = (fitted_data |> filter(matrix == "beta_thing")))
+	+ geom_line(aes(time, value))
+	+ geom_ribbon(aes(time, ymin=conf.low, ymax=conf.high)
+		, alpha = 0.2
+		, color = "red"
+	)
+)
+
+print(betaplot)
+
+
+
+```
