@@ -248,6 +248,50 @@ print(gg)
 
 ## Starting with the original SIR model spec (model.R), fit a spline-based time varying beta SIR to the piece-wise determinsitic simulation
 
+```{r timevar_rbf_calibration}
+#---- Calibrate using the selected parameters ----#
+make_rbf_calibrator = function(dimension) {
+  mp_tmb_calibrator(
+      spec = mp_euler(timevar_spec),
+    , data = obsdat
+    , traj = "incidence"
+    , outputs = c("beta_thing","incidence"), # The "Reporting List"
+    ## -----------------------------
+    , tv = mp_rbf("beta_thing", dimension)
+    # STARTING VALUE
+    , par = list(
+      beta_thing = mp_normal(1, 2.0)
+    )
+  )
+}
+
+calibrator <- make_rbf_calibrator(dimension = 4)
+
+opt = mp_optimize(calibrator)
+
+## Check optimized fit
+
+print(opt)
+
+
+## Plots
+
+fitted_data = mp_trajectory_sd(calibrator, conf.int = TRUE)
+
+gg <- (ggplot(obsdat)
+  + geom_point(aes(time, value))
+  + geom_line(data = fitted_data, aes(time, value))
+  + geom_ribbon(aes(time, ymin = conf.low, ymax = conf.high)
+    , data = fitted_data
+    , alpha = 0.2
+    , colour = "red"
+  )
+)
+
+print(gg)
+
+```
+
 ```{r timevar_spline_calibration}
 ## modifying the deterministic simulation as data
 
