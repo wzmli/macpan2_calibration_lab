@@ -40,7 +40,7 @@ calibrate.Rout: calibrate.R model.rds simulate.rds
 timevar_model.Rout: timevar_model.R model.rds
 	$(pipeRcall)
 
-# timevar_sims.Rout: timevar_model.R
+# timevar_sims.Rout: timevar_sims.R timevar_model.R
 timevar_sims.Rout: timevar_sims.R timevar_model.rds
 	$(pipeRcall)
 

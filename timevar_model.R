@@ -4,16 +4,18 @@ rpcall("timevar_model.Rout timevar_model.R model.rds")
 
 spec <- rdsRead()
 
-beta_changepoints <- c(1,50, 80, 120)
-beta_values <- c(0.2,0.15,0.1,0.2)
+beta_changepoints <- c(0,30, 50, 80)
+beta_values <- c(0.3,0.2,0.1,0.2)
 
 expr <- list(beta ~ time_var(beta_values, beta_changepoints))
 
 timevar_spec <- (spec
 	|> mp_tmb_insert(phase = "during"
-		, at = 1
+		, at = 1L
 		, expressions = expr
-		, default = list(beta_values = beta_values)
+		, default = list(beta = beta_values[1]
+			, beta_values = beta_values
+		)
 		, integers = list(beta_changepoints = beta_changepoints)
 	)
 )

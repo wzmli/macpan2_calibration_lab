@@ -6,14 +6,13 @@ rpcall("model.Rout model.R")
 flows = list(
     mp_per_capita_flow("S", "I", "beta * I / N", "incidence")
   , mp_per_capita_flow("I", "R", "gamma", "recovery")
-  , beta_thing ~ beta
 )
 
 ## default values for quantities required to run simulations
 default = list(
     beta = 0.2   ## transmission rate
   , gamma = 0.1  ## recovery rate
-  , N = 1000      ## total population size (constant in this model)
+  , N = 10000      ## total population size (constant in this model)
   , I = 1        ## initial number of infectious individuals
   , R = 0        ## initial number of recovered individuals
 )
